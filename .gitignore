@@ -1,0 +1,18 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Python artifacts and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local databases and editor/OS files
+*.db
+*.sqlite3
+.DS_Store
+
+# Local cloud credentials
+.aws

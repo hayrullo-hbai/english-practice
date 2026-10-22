@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f8f6" />
+    <title>English Practice</title>
+    <link rel="stylesheet" href="/styles.css?v=dashboard4" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="#practice" aria-label="English Practice bosh sahifa"><span class="brand-mark">E</span><span>English<span class="brand-light">Practice</span></span></a>
+        <nav class="tabs" aria-label="Asosiy bo‘limlar">
+          <button class="tab active" data-view="practice">Mashq</button>
+          <button class="tab" data-view="library">Savollar</button>
+          <button class="tab" data-view="dashboard">Tahlil</button>
+          <button class="tab" data-view="settings">Sozlamalar</button>
+        </nav>
+        <span class="status"><i></i> Tayyor</span>
+      </header>
+
+      <section class="view active" id="practice-view">
+        <div class="intro"><p class="eyebrow">KUNLIK MASHQ</p><h1>Bilimingizni mustahkamlang.</h1><p>Qisqa mashqlar bilan ingliz tilida ishonchliroq gapiring.</p></div>
+        <div class="practice-modes" role="group" aria-label="Mashq bosqichini tanlang">
+          <button class="mode-option selected" type="button" data-stage="1" aria-pressed="true"><span>01</span><b>1-bosqich</b><small>Boshlang‘ich</small></button>
+          <button class="mode-option" type="button" data-stage="2" aria-pressed="false"><span>02</span><b>2-bosqich</b><small>O‘rta</small></button>
+          <button class="mode-option" type="button" data-stage="3" aria-pressed="false"><span>03</span><b>3-bosqich</b><small>Yuqori · audio</small></button>
+        </div>
+        <div class="practice-layout">
+          <article class="practice-card" id="practice-card">
+            <div class="card-meta"><span class="stage-pill" id="stage-pill">1-BOSQICH</span><span id="score-label">0 ball</span></div>
+            <div class="prompt-area"><div class="sound-icon">♫</div><p class="eyebrow">SAVOL</p><h2 id="prompt">Mashqni boshlash uchun tugmani bosing.</h2><p id="audio-only-note" class="audio-only-note" hidden>🎧 Savolni tinglang</p></div>
+            <div class="audio-controls"><button class="secondary" id="listen-btn" aria-keyshortcuts="Alt+L Enter Space" disabled>▶ &nbsp; Eshitish</button><span>Alt+L: audio · Enter/Space: eshitish · Tab: fokus · Alt+P: javob</span></div>
+            <form id="answer-form" class="answer-form"><label for="answer-input">Javobingiz</label><div class="input-row"><input id="answer-input" type="text" autocomplete="off" aria-keyshortcuts="Alt+P" placeholder="Javobni ingliz tilida yozing…" disabled /><button class="primary" id="submit-btn" disabled>Tekshirish <span>↗</span></button></div></form>
+            <div class="feedback" id="feedback" aria-live="polite"></div>
+            <div class="card-bottom"><span id="attempt-label">2 ta imkoniyat · keyin ishora</span><button class="text-button" id="next-btn" hidden>Keyingi savol <span>→</span></button></div>
+          </article>
+          <aside class="side-column">
+            <article class="side-card progress-card"><div class="side-heading"><div><p class="eyebrow">SIZNING YO‘LINGIZ</p><h3>Uch bosqich</h3></div><span>↗</span></div><div class="stage-list"><div class="stage-row current" data-stage-row="1"><span class="stage-number">01</span><div><b>Boshlang‘ich</b><small>Asosiy savollar</small></div><span class="stage-state">Tanlangan</span></div><div class="stage-row" data-stage-row="2"><span class="stage-number">02</span><div><b>O‘rta</b><small>Murakkabroq savollar</small></div><span class="stage-state"></span></div><div class="stage-row" data-stage-row="3"><span class="stage-number">03</span><div><b>Yuqori</b><small>Eng qiyin savollar</small></div><span class="stage-state"></span></div></div></article>
+            <article class="quote-card"><span class="quote-mark">“</span><p>Har kuni ozgina mashq — katta natijalarga olib boradi.</p><span>DAVOM ETING</span></article>
+          </aside>
+        </div>
+        <button id="start-btn" class="primary start-button">Mashqni boshlash <span>→</span></button>
+      </section>
+
+      <section class="view" id="library-view">
+        <div class="intro compact"><p class="eyebrow">SAVOLLAR TO‘PLAMI</p><h1>O‘z mashqlaringizni yarating.</h1><p>Savol, to‘g‘ri javob va ishorani kiriting.</p></div>
+        <div class="library-layout"><form class="form-card" id="question-form"><h2 id="question-form-title">Yangi savol</h2><label for="prompt-input">Inglizcha savol</label><textarea id="prompt-input" required rows="3" placeholder="What do you like to do in your free time?"></textarea><label for="correct-input">To‘g‘ri javob</label><input id="correct-input" required placeholder="I like reading books." /><label for="hint-input">Ishora <span class="optional">ixtiyoriy</span></label><input id="hint-input" placeholder="Bo‘sh vaqtingizda yoqtiradigan mashg‘ulot…" /><label for="stage-input">Boshlang‘ich bosqich</label><select id="stage-input"><option value="1">1-bosqich · boshlang‘ich</option><option value="2">2-bosqich · o‘rta</option><option value="3">3-bosqich · yuqori</option></select><div class="form-actions"><button class="primary full-button" id="save-question-btn">Savolni saqlash <span>↗</span></button><button class="secondary full-button" id="cancel-edit-btn" type="button" hidden>Bekor qilish</button></div><p class="form-message" id="form-message" aria-live="polite"></p></form><div class="question-list-card"><div class="list-title"><div><p class="eyebrow">KUTUBXONA</p><h2>Saqlangan savollar</h2></div><span class="count" id="question-count">0</span></div><div id="question-list" class="question-list"></div></div></div>
+      </section>
+
+      <section class="view" id="dashboard-view">
+        <div class="intro compact dashboard-intro"><div><p class="eyebrow">O‘SISH KO‘RSATKICHLARI</p><h1>Mashq natijalari.</h1><p>Faollik va javoblaringizni kunlar bo‘yicha kuzating.</p></div><label class="period-picker">Davr<select id="dashboard-period"><option value="7">Oxirgi 7 kun</option><option value="30">Oxirgi 30 kun</option><option value="all">Barcha vaqt</option></select></label></div>
+        <div class="metric-grid"><article class="metric-card"><span>Javoblangan savollar</span><strong id="metric-answered">0</strong><small>tanlangan davrda</small></article><article class="metric-card"><span>Mashq vaqti</span><strong id="metric-time">0 daq</strong><small>faol mashg‘ulot</small></article><article class="metric-card"><span>Faol kunlar</span><strong id="metric-days">0 / 7</strong><small>mashq qilingan kun</small></article><article class="metric-card"><span>To‘g‘ri javoblar</span><strong id="metric-accuracy">0%</strong><small>yakunlangan savollardan</small></article><article class="metric-card"><span>O‘rtacha javob vaqti</span><strong id="metric-speed">0 son</strong><small>har bir savolga</small></article></div>
+        <article class="growth-card"><div class="growth-header"><div><p class="eyebrow">GROWTH TREND</p><h2>Kunlik faoliyat tahlili</h2><p class="growth-caption" id="growth-caption">Har kun natijasi oldingi kun bilan solishtiriladi.</p></div><span id="growth-direction" class="growth-direction neutral">Ma’lumot kutilmoqda</span></div><div class="growth-metrics"><div><small>Javoblar</small><b id="growth-answers">—</b><span id="growth-answers-detail">davrning ikkinchi yarmi</span></div><div><small>Mashq vaqti</small><b id="growth-time">—</b><span id="growth-time-detail">davrning ikkinchi yarmi</span></div><div><small>Aniqlik</small><b id="growth-accuracy">—</b><span id="growth-accuracy-detail">to‘g‘ri javoblar ulushi</span></div></div><div class="growth-list-heading"><b id="growth-list-title">Kunlik o‘zgarish</b><span>oldingi kun bilan taqqoslash</span></div><div id="growth-daily-list" class="growth-daily-list"></div></article>
+        <div class="chart-grid"><article class="chart-card"><div class="daily-heading"><div><p class="eyebrow">JAMI NATIJA</p><h2>Javoblar o‘sishi</h2></div></div><div id="answers-chart" class="trend-chart"></div></article><article class="chart-card"><div class="daily-heading"><div><p class="eyebrow">MASHQ VAQTI</p><h2>Vaqt dinamikasi</h2></div></div><div id="time-chart" class="trend-chart"></div></article></div>
+        <article class="daily-card"><div class="daily-heading"><div><p class="eyebrow">FAOLLIK JADVALI</p><h2>Mashq faolligi</h2></div><span id="dashboard-summary" class="daily-summary"></span></div><div id="daily-activity" class="daily-activity"></div><p id="dashboard-empty" class="empty" hidden>Bu davrda mashq yo‘q. Birinchi mashqni boshlang.</p></article>
+      </section>
+
+      <section class="view" id="settings-view">
+        <div class="intro compact"><p class="eyebrow">SHAXSIYLASHTIRISH</p><h1>Mashq qoidalari.</h1><p>Bosqichdan o‘tish uchun kerakli ballarni belgilang.</p></div>
+        <form class="form-card settings-card" id="settings-form"><h2>Bosqich sozlamalari</h2><label for="threshold-one">1-bosqichdan o‘tish bali</label><input id="threshold-one" type="number" min="1" required /><label for="threshold-two">2-bosqichdan o‘tish bali</label><input id="threshold-two" type="number" min="1" required /><label for="return-score">3-bosqichdan qaytganda boshlang‘ich ball</label><input id="return-score" type="number" min="0" required /><button class="primary full-button">Sozlamalarni saqlash <span>↗</span></button><p class="form-message" id="settings-message" aria-live="polite"></p></form>
+      </section>
+
+      <footer><span>English Practice</span><span>Har bir urinish — o‘sish sari qadam.</span></footer>
+    </main>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="/app.js?v=dashboard4" defer></script>
+  </body>
+</html>
