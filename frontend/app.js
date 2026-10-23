@@ -10,7 +10,7 @@ async function request(path, options = {}) {
   });
   if (!response.ok) {
     const detail = await response.json().catch(() => ({}));
-    throw new Error(detail.detail || 'So‘rov bajarilmadi.');
+    throw new Error(detail.detail || 'Request failed.');
   }
   return response.status === 204 ? null : response.json();
 }
@@ -44,7 +44,7 @@ document.querySelectorAll('.mode-option').forEach((option) => {
     document.querySelectorAll('.stage-row[data-stage-row]').forEach((row) => {
       const selected = Number(row.dataset.stageRow) === state.selectedStage;
       row.classList.toggle('current', selected);
-      row.querySelector('.stage-state').textContent = selected ? 'Tanlangan' : '';
+      row.querySelector('.stage-state').textContent = selected ? 'Selected' : '';
     });
   });
 });
@@ -57,6 +57,7 @@ function setPracticeEnabled(enabled) {
 
 async function nextQuestion() {
   window.clearTimeout(state.nextTimer);
+  state.roundId = null;
   $('#practice-card').classList.remove('success-celebrate');
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   const feedback = $('#feedback');
@@ -73,9 +74,9 @@ async function nextQuestion() {
     const audioOnly = state.question.stage === 3;
     $('#prompt').hidden = audioOnly;
     $('#audio-only-note').hidden = !audioOnly;
-    $('#stage-pill').textContent = `${state.question.stage}-BOSQICH`;
-    $('#score-label').textContent = `${state.question.score} ball`;
-    $('#attempt-label').textContent = '2 ta imkoniyat · keyin ishora';
+    $('#stage-pill').textContent = `LEVEL ${state.question.stage}`;
+    $('#score-label').textContent = `${state.question.score} points`;
+    $('#attempt-label').textContent = '2 tries · hint after the second attempt';
     setPracticeEnabled(true);
     $('#listen-btn').focus();
     if (audioOnly) playQuestionAudio();
@@ -91,7 +92,7 @@ $('#start-btn').addEventListener('click', nextQuestion);
 $('#next-btn').addEventListener('click', nextQuestion);
 function playQuestionAudio() {
   if (!state.question || !('speechSynthesis' in window)) {
-    toast('Brauzeringiz audio o‘qishni qo‘llab-quvvatlamaydi.');
+    toast('Your browser does not support speech playback.');
     return;
   }
   window.speechSynthesis.cancel();
@@ -120,24 +121,27 @@ $('#answer-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!state.question || state.finished) return;
   const feedback = $('#feedback');
+  const submittedRoundId = state.roundId;
+  const submittedQuestionId = state.question.id;
   try {
-    const result = await request(`/practice/${state.question.id}/answer`, {
+    const result = await request(`/practice/${submittedQuestionId}/answer`, {
       method: 'POST',
-      body: JSON.stringify({ answer: $('#answer-input').value, round_id: state.roundId, duration_seconds: Math.floor(state.elapsedSeconds) }),
+      body: JSON.stringify({ answer: $('#answer-input').value, round_id: submittedRoundId, duration_seconds: Math.floor(state.elapsedSeconds) }),
     });
+    if (state.roundId !== submittedRoundId) return;
     feedback.className = `feedback ${result.correct ? 'success' : result.done ? 'error' : ''}`;
     feedback.textContent = result.hint ? `${result.message} ${result.hint}` : result.message;
-    $('#attempt-label').textContent = `Urinish ${result.attempt_number} / 3`;
-    $('#stage-pill').textContent = `${result.stage}-BOSQICH`;
-    $('#score-label').textContent = `${result.score} ball`;
+    $('#attempt-label').textContent = `Attempt ${result.attempt_number} / 3`;
+    $('#stage-pill').textContent = `LEVEL ${result.stage}`;
+    $('#score-label').textContent = `${result.score} points`;
     if (result.done) {
       state.finished = true;
       $('#next-btn').hidden = result.correct;
       setPracticeEnabled(false);
       if (result.correct) {
-        feedback.textContent = 'To‘g‘ri javob! Keyingi savol…';
+        feedback.textContent = 'Correct! Listen to the answer…';
         $('#practice-card').classList.add('success-celebrate');
-        state.nextTimer = window.setTimeout(nextQuestion, 1400);
+        playAnswerAudio(result.answer, submittedRoundId);
       }
     }
   } catch (error) {
@@ -145,6 +149,31 @@ $('#answer-form').addEventListener('submit', async (event) => {
     feedback.textContent = error.message;
   }
 });
+
+function playAnswerAudio(answer, roundId) {
+  const advance = () => {
+    if (state.roundId !== roundId || !state.finished) return;
+    window.clearTimeout(state.nextTimer);
+    state.nextTimer = window.setTimeout(nextQuestion, 250);
+  };
+  if (!answer || !('speechSynthesis' in window)) {
+    state.nextTimer = window.setTimeout(advance, 1400);
+    return;
+  }
+  const utterance = new SpeechSynthesisUtterance(answer);
+  utterance.lang = 'en-US';
+  utterance.rate = 0.88;
+  utterance.onend = advance;
+  utterance.onerror = advance;
+  window.speechSynthesis.cancel();
+  state.nextTimer = window.setTimeout(advance, Math.min(30000, Math.max(8000, answer.length * 180)));
+  try {
+    window.speechSynthesis.speak(utterance);
+  } catch (error) {
+    window.clearTimeout(state.nextTimer);
+    state.nextTimer = window.setTimeout(advance, 1400);
+  }
+}
 
 setInterval(() => {
   if (state.question && !state.finished && document.visibilityState === 'visible' && document.hasFocus()) {
@@ -158,13 +187,13 @@ async function loadDashboard() {
     const stats = await request(`/dashboard?period=${period}&timezone_offset_minutes=${new Date().getTimezoneOffset()}`);
     $('#metric-answered').textContent = stats.total_questions_answered;
     $('#metric-time').textContent = formatDuration(stats.total_seconds);
-    $('#metric-days').textContent = period === 'all' ? `${stats.active_days} kun` : `${stats.active_days} / ${stats.days}`;
+    $('#metric-days').textContent = period === 'all' ? `${stats.active_days} days` : `${stats.active_days} / ${stats.days}`;
     $('#metric-accuracy').textContent = `${stats.accuracy_percent}%`;
     $('#metric-speed').textContent = formatAverage(stats.average_seconds_per_question);
-    $('#dashboard-summary').textContent = `${stats.total_questions_answered} savol · ${formatDuration(stats.total_seconds)}`;
+    $('#dashboard-summary').textContent = `${stats.total_questions_answered} questions · ${formatDuration(stats.total_seconds)}`;
     renderGrowthTrend(stats.daily, stats.granularity);
-    renderTrendChart($('#answers-chart'), stats.daily, (item) => item.questions_answered, true, stats.granularity, 'Jami javoblar');
-    renderTrendChart($('#time-chart'), stats.daily, (item) => item.duration_seconds / 3600, true, stats.granularity, 'Jami soatlar');
+    renderTrendChart($('#answers-chart'), stats.daily, (item) => item.questions_answered, true, stats.granularity, 'Total answers');
+    renderTrendChart($('#time-chart'), stats.daily, (item) => item.duration_seconds / 3600, true, stats.granularity, 'Total hours');
     const container = $('#daily-activity');
     container.replaceChildren();
     const maxDuration = Math.max(1, ...stats.daily.map((item) => item.duration_seconds));
@@ -185,10 +214,10 @@ async function loadDashboard() {
       time.textContent = formatDuration(item.duration_seconds);
       const answers = document.createElement('span');
       answers.className = 'daily-answers';
-      answers.textContent = `${item.questions_answered} savol`;
+      answers.textContent = `${item.questions_answered} questions`;
       const accuracy = document.createElement('span');
       accuracy.className = 'daily-accuracy';
-      accuracy.textContent = item.questions_answered ? `${item.accuracy_percent}% to‘g‘ri` : '—';
+      accuracy.textContent = item.questions_answered ? `${item.accuracy_percent}% correct` : '—';
       row.append(date, bar, time, answers, accuracy);
       container.append(row);
     });
@@ -223,26 +252,26 @@ function renderGrowthTrend(buckets, granularity) {
   direction.className = 'growth-direction';
   if (!hasActivity) {
     direction.classList.add('neutral');
-    direction.textContent = 'Hali ma’lumot yo‘q';
+    direction.textContent = 'No data yet';
   } else if (buckets.length < 2 || directionDelta === 0) {
     direction.classList.add('neutral');
-    direction.textContent = 'Barqaror';
+    direction.textContent = 'Stable';
   } else if (directionDelta > 0) {
     direction.classList.add('positive');
-    direction.textContent = '↑ O‘sish';
+    direction.textContent = '↑ Growing';
   } else {
     direction.classList.add('negative');
-    direction.textContent = '↓ Pasayish';
+    direction.textContent = '↓ Declining';
   }
   $('#growth-caption').textContent = granularity === 'month'
-    ? 'Davrning ikkinchi yarmi birinchi yarmi bilan taqqoslandi; quyida oyma-oy o‘zgarish.'
-    : 'Davrning ikkinchi yarmi birinchi yarmi bilan taqqoslandi; quyida kunma-kun o‘zgarish.';
-  $('#growth-answers').textContent = buckets.length < 2 ? '—' : signedValue(answerDelta, 'savol');
-  $('#growth-answers-detail').textContent = buckets.length < 2 ? 'taqqoslash uchun ko‘proq kun kerak' : 'kunlik o‘rtacha javoblar';
+    ? 'The second half is compared with the first; monthly changes are listed below.'
+    : 'The second half is compared with the first; daily changes are listed below.';
+  $('#growth-answers').textContent = buckets.length < 2 ? '—' : signedValue(answerDelta, 'questions');
+  $('#growth-answers-detail').textContent = buckets.length < 2 ? 'more days are needed for comparison' : 'average answers per day';
   $('#growth-time').textContent = buckets.length < 2 ? '—' : signedDuration(timeDelta);
-  $('#growth-time-detail').textContent = buckets.length < 2 ? 'taqqoslash uchun ko‘proq kun kerak' : 'kunlik o‘rtacha mashq vaqti';
-  $('#growth-accuracy').textContent = accuracyDelta === null ? '—' : `${accuracyDelta > 0 ? '+' : ''}${Math.round(accuracyDelta)} foiz band`;
-  $('#growth-accuracy-detail').textContent = accuracyDelta === null ? 'taqqoslash uchun javoblar yetarli emas' : 'to‘g‘ri javoblar ulushidagi farq';
+  $('#growth-time-detail').textContent = buckets.length < 2 ? 'more days are needed for comparison' : 'average practice time per day';
+  $('#growth-accuracy').textContent = accuracyDelta === null ? '—' : `${accuracyDelta > 0 ? '+' : ''}${Math.round(accuracyDelta)} pp`;
+  $('#growth-accuracy-detail').textContent = accuracyDelta === null ? 'not enough answers to compare' : 'change in correct answer rate';
 
   const list = $('#growth-daily-list');
   list.replaceChildren();
@@ -255,11 +284,11 @@ function renderGrowthTrend(buckets, granularity) {
     const date = document.createElement('b');
     date.textContent = granularity === 'month' ? formatMonth(item.date) : formatDay(item.date);
     const answers = document.createElement('span');
-    answers.textContent = `${item.questions_answered} savol`;
+    answers.textContent = `${item.questions_answered} questions`;
     const time = document.createElement('span');
     time.textContent = formatDuration(item.duration_seconds);
     const accuracy = document.createElement('span');
-    accuracy.textContent = item.questions_answered ? `${item.accuracy_percent}% to‘g‘ri` : '—';
+    accuracy.textContent = item.questions_answered ? `${item.accuracy_percent}% correct` : '—';
     const change = document.createElement('span');
     if (!previous) {
       change.className = 'growth-change neutral';
@@ -269,12 +298,12 @@ function renderGrowthTrend(buckets, granularity) {
       const timeDifference = item.duration_seconds - previous.duration_seconds;
       const directionDifference = difference || timeDifference;
       change.className = `growth-change ${directionDifference > 0 ? 'positive' : directionDifference < 0 ? 'negative' : 'neutral'}`;
-      change.textContent = `${difference > 0 ? '↑' : difference < 0 ? '↓' : '→'} ${Math.abs(difference)} savol · ${signedDuration(timeDifference)}`;
+      change.textContent = `${difference > 0 ? '↑' : difference < 0 ? '↓' : '→'} ${Math.abs(difference)} questions · ${signedDuration(timeDifference)}`;
     }
     row.append(date, answers, time, accuracy, change);
     list.append(row);
   });
-  $('#growth-list-title').textContent = granularity === 'month' ? 'Oylik ko‘rsatkichlar' : 'Kunlik ko‘rsatkichlar';
+  $('#growth-list-title').textContent = granularity === 'month' ? 'Monthly metrics' : 'Daily metrics';
 }
 
 function signedValue(value, unit) {
@@ -303,7 +332,7 @@ function renderTrendChart(container, buckets, valueFor, cumulative, granularity,
     values.push(sum);
   });
   if (!values.some((value) => value > 0)) {
-    container.textContent = 'Bu davrda grafik uchun ma’lumot yo‘q.';
+    container.textContent = 'No chart data for this period.';
     container.classList.add('chart-empty');
     return;
   }
@@ -312,7 +341,7 @@ function renderTrendChart(container, buckets, valueFor, cumulative, granularity,
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', `${label} grafigi`);
+  svg.setAttribute('aria-label', `${label} chart`);
   const add = (tag, attrs, text = '') => {
     const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
     Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
@@ -350,34 +379,34 @@ function renderTrendChart(container, buckets, valueFor, cumulative, granularity,
 }
 
 function formatChartValue(value, label) {
-  if (label === 'Jami soatlar') return `${Number(value.toFixed(1))}s`;
+  if (label === 'Total hours') return `${Number(value.toFixed(1))}h`;
   return `${Math.round(value)}`;
 }
 
 function formatDuration(seconds) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours) return `${hours} soat ${minutes} daq`;
-  if (minutes) return `${minutes} daq`;
-  return `${seconds} son`;
+  if (hours) return `${hours} hr ${minutes} min`;
+  if (minutes) return `${minutes} min`;
+  return `${seconds} sec`;
 }
 
 function formatDay(dateString) {
   const date = new Date(`${dateString}T12:00:00`);
-  const weekdays = ['Yak', 'Du', 'Se', 'Cho', 'Pay', 'Ju', 'Sha'];
-  const months = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek'];
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${weekdays[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
 }
 
 function formatMonth(dateString) {
   const date = new Date(`${dateString}T12:00:00`);
-  const months = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 function formatAverage(seconds) {
-  if (seconds >= 60) return `${Math.floor(seconds / 60)} daq ${seconds % 60} son`;
-  return `${seconds} son`;
+  if (seconds >= 60) return `${Math.floor(seconds / 60)} min ${seconds % 60} sec`;
+  return `${seconds} sec`;
 }
 
 $('#dashboard-period').addEventListener('change', loadDashboard);
@@ -389,7 +418,7 @@ async function loadQuestions() {
     const list = $('#question-list');
     list.replaceChildren();
     if (!questions.length) {
-      list.innerHTML = '<p class="empty">Savollar hozircha yo‘q. Birinchi savolni qo‘shing.</p>';
+      list.innerHTML = '<p class="empty">No questions yet. Add your first question.</p>';
       return;
     }
     questions.forEach((question) => {
@@ -399,26 +428,26 @@ async function loadQuestions() {
       const title = document.createElement('p');
       title.textContent = question.prompt;
       const meta = document.createElement('small');
-      meta.textContent = `${question.stage}-bosqich · ${question.score} ball`;
+      meta.textContent = `Level ${question.stage} · ${question.score} points`;
       info.append(title, meta);
       const actions = document.createElement('div');
       actions.className = 'question-actions';
       const edit = document.createElement('button');
       edit.className = 'edit-btn';
       edit.type = 'button';
-      edit.textContent = 'Tahrirlash';
+      edit.textContent = 'Edit';
       edit.addEventListener('click', () => beginEdit(question));
       const remove = document.createElement('button');
       remove.className = 'delete-btn';
       remove.type = 'button';
-      remove.textContent = 'O‘chirish';
+      remove.textContent = 'Delete';
       remove.addEventListener('click', async () => {
-        if (!window.confirm('Bu savolni o‘chirasizmi?')) return;
+        if (!window.confirm('Delete this question?')) return;
         try {
           await request(`/questions/${question.id}`, { method: 'DELETE' });
           if (editingQuestionId === question.id) resetQuestionForm();
           loadQuestions();
-          toast('Savol o‘chirildi.');
+          toast('Question deleted.');
         }
         catch (error) { toast(error.message); }
       });
@@ -431,8 +460,8 @@ async function loadQuestions() {
 
 function beginEdit(question) {
   editingQuestionId = question.id;
-  $('#question-form-title').textContent = 'Savolni tahrirlash';
-  $('#save-question-btn').innerHTML = 'O‘zgarishlarni saqlash <span>↗</span>';
+  $('#question-form-title').textContent = 'Edit question';
+  $('#save-question-btn').innerHTML = 'Save changes <span>↗</span>';
   $('#cancel-edit-btn').hidden = false;
   $('#prompt-input').value = question.prompt;
   $('#correct-input').value = question.answer;
@@ -446,8 +475,8 @@ function beginEdit(question) {
 function resetQuestionForm() {
   editingQuestionId = null;
   $('#question-form').reset();
-  $('#question-form-title').textContent = 'Yangi savol';
-  $('#save-question-btn').innerHTML = 'Savolni saqlash <span>↗</span>';
+  $('#question-form-title').textContent = 'New question';
+  $('#save-question-btn').innerHTML = 'Save question <span>↗</span>';
   $('#cancel-edit-btn').hidden = true;
   $('#form-message').textContent = '';
 }
@@ -468,7 +497,7 @@ $('#question-form').addEventListener('submit', async (event) => {
       body: JSON.stringify(questionData),
     });
     resetQuestionForm();
-    message.textContent = editing ? 'Savol yangilandi.' : 'Savol saqlandi.';
+    message.textContent = editing ? 'Question updated.' : 'Question saved.';
     loadQuestions();
   } catch (error) { message.textContent = error.message; }
 });
@@ -490,6 +519,6 @@ $('#settings-form').addEventListener('submit', async (event) => {
       stage_two_threshold: Number($('#threshold-two').value),
       stage_two_return_score: Number($('#return-score').value),
     }) });
-    $('#settings-message').textContent = 'Sozlamalar saqlandi.';
+    $('#settings-message').textContent = 'Settings saved.';
   } catch (error) { $('#settings-message').textContent = error.message; }
 });

@@ -191,7 +191,7 @@ def update_question(
 ) -> Question:
     question = db.get(Question, question_id)
     if question is None:
-        raise HTTPException(status_code=404, detail="Savol topilmadi")
+        raise HTTPException(status_code=404, detail="Question not found.")
 
     updated_values = payload.model_dump()
     if question.stage != updated_values["stage"]:
@@ -208,7 +208,7 @@ def update_question(
 def delete_question(question_id: int, db: Session = Depends(get_db)) -> None:
     question = db.get(Question, question_id)
     if question is None:
-        raise HTTPException(status_code=404, detail="Savol topilmadi")
+        raise HTTPException(status_code=404, detail="Question not found.")
     db.query(Attempt).filter_by(question_id=question_id).delete(
         synchronize_session=False
     )
@@ -234,8 +234,8 @@ def next_question(
         raise HTTPException(
             status_code=404,
             detail=(
-                f"{stage}-bosqichda savollar topilmadi. "
-                "Savol kiriting yoki boshqa bosqichni tanlang."
+                f"No questions found for Level {stage}. "
+                "Add a question or choose another level."
             ),
         )
     question = random.choice(questions)
@@ -264,11 +264,11 @@ def answer_question(
 ) -> dict[str, object]:
     question = db.get(Question, question_id)
     if question is None or not question.active:
-        raise HTTPException(status_code=404, detail="Savol topilmadi")
+        raise HTTPException(status_code=404, detail="Question not found.")
 
     practice_round = db.get(PracticeRound, payload.round_id)
     if practice_round is None or practice_round.question_id != question_id:
-        raise HTTPException(status_code=404, detail="Mashq sessiyasi topilmadi")
+        raise HTTPException(status_code=404, detail="Practice session not found.")
     practice_round.duration_seconds = max(
         practice_round.duration_seconds, payload.duration_seconds
     )
@@ -311,14 +311,15 @@ def answer_question(
             question.score = 0
             response["stage_up"] = True
         response["done"] = True
-        response["message"] = "To‘g‘ri javob!"
+        response["message"] = "Correct!"
+        response["answer"] = question.answer
         response["score"] = question.score
         response["stage"] = question.stage
     elif attempt_number >= 3:
         response["done"] = True
         response["reveal_answer"] = True
         response["answer"] = question.answer
-        response["message"] = "Javob: " + question.answer
+        response["message"] = "Answer: " + question.answer
         if question.stage == 1:
             question.score = max(0, question.score - 1)
         elif question.stage == 2:
@@ -331,10 +332,10 @@ def answer_question(
         response["score"] = question.score
         response["stage"] = question.stage
     elif attempt_number == 2:
-        response["hint"] = question.hint or "Javobni eslashga harakat qiling."
-        response["message"] = "Yana bir marta urinib ko‘ring."
+        response["hint"] = question.hint or "Try to remember the answer."
+        response["message"] = "Try once more."
     else:
-        response["message"] = "Javob noto‘g‘ri. Qayta urinib ko‘ring."
+        response["message"] = "That answer is incorrect. Try again."
 
     if response["done"]:
         practice_round.completed = True
